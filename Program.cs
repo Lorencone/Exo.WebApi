@@ -7,12 +7,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 
 builder.Services.AddScoped<ExoContext>(); 
-
 // Registra o repositório
 builder.Services.AddTransient<ProjetoRepository>(); 
-
 builder.Services.AddControllers();
-
+builder.Services.AddTransient<UsuarioRepository>();
 var app = builder.Build();
 
 // --- 2. Configuração do Pipeline HTTP ---
