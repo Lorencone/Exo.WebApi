@@ -3,6 +3,9 @@ using Exo.WebApi.Repositories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 
 namespace Exo.WebApi.Controllers
 {
@@ -32,19 +35,49 @@ namespace Exo.WebApi.Controllers
             }
         }
 
-        [HttpPost]
-        public IActionResult Cadastrar(Usuario usuario)
+        // [HttpPost]
+        // public IActionResult Cadastrar(Usuario usuario)
+        // {
+        //     try
+        //     {
+        //         _usuarioRepository.Cadastrar(usuario);
+        //         return StatusCode(201);
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         return BadRequest(new { mensagem = "Erro ao cadastrar o usuário.", erro = ex.Message });
+        //     }
+        // }
+
+        public IActionResult Post(Usuario usuario)
         {
-            try
+            Usuario usuarioBuscado = _usuarioRepository.Login(usuario.Email, usuario.Senha);
+            if (usuarioBuscado == null)
             {
-                _usuarioRepository.Cadastrar(usuario);
-                return StatusCode(201);
+                return NotFound(new { mensagem = "E-mail ou senha inválidos!" });
             }
-            catch (Exception ex)
+            var claims = new[]
             {
-                return BadRequest(new { mensagem = "Erro ao cadastrar o usuário.", erro = ex.Message });
-            }
+                new Claim(JwtRegisteredClaimNames.Email, usuarioBuscado.Email),
+                new Claim(JwtRegisteredClaimNames.Jti, usuarioBuscado.Id.ToString()),
+                //new Claim(ClaimTypes.Role, usuarioBuscado.TipoUsuario)
+            };
+            var key = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes("exo-webapi-chave-autenticacao"));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+            var token = new JwtSecurityToken(
+                issuer: "Exo.WebApi",
+                audience: "Exo.WebApi",
+                claims: claims,
+                expires: DateTime.Now.AddMinutes(30),
+                signingCredentials: creds
+            );
+            return Ok(new
+            {
+                token = new JwtSecurityTokenHandler().WriteToken(token)
+            });
         }
+
         [HttpGet("{id}")]
         public IActionResult BuscarPorId(int id)
         {
@@ -62,6 +95,8 @@ namespace Exo.WebApi.Controllers
                 return BadRequest(new { mensagem = "Erro ao buscar o usuário.", erro = ex.Message });
             }
         }
+
+        [Authorize]
         [HttpPut("{id}")]
         public IActionResult Atualizar(int id, Usuario usuario)
         {
@@ -75,6 +110,8 @@ namespace Exo.WebApi.Controllers
                 return BadRequest(new { mensagem = "Erro ao atualizar o usuário.", erro = ex.Message });
             }
         }
+
+        [Authorize]
         [HttpDelete("{id}")]
         public IActionResult Deletar(int id)
         {
